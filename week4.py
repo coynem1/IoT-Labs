@@ -9,7 +9,7 @@ James Lawlor C22388703
 
 '''
 
-
+import requests
 from network import WLAN
 from machine import Pin, PWM
 import time, socket
@@ -101,6 +101,9 @@ def server(wifi, ssid, password):
             data = cxn.recvfrom(200)
             
             brightness = getHTTP(data, s)
+            rp = requests.post('http://10.223.16.18/post', data={'key': 'value'})
+            rg = requests.get('https://10.223.16.18/events')
+            print(rg)
             
             if brightness == -1:
                 cxn.sendall("HTTP/1.1 404 NOT FOUND\r\n"
@@ -117,7 +120,6 @@ def server(wifi, ssid, password):
                             + successHTML)
             
             cxn.close()
-
 
 
 # Returns value
@@ -154,6 +156,7 @@ def getHTTP(data, sock) -> float:
     print("Val:", value)
     
     return value
+
     
     
 # ------------------------------------------------------------
@@ -162,8 +165,8 @@ def getHTTP(data, sock) -> float:
 wifi = WLAN(WLAN.IF_STA)
 wifi.active(True)
 
-ssid = 'Galaxy S22U'
-password = 'georgepassword'
+ssid = 'Ciarans S22 Ultra'
+password = 'password12'
 
 getWifi(wifi)
 wifiSetup(wifi, ssid, password)
