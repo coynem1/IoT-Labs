@@ -1,16 +1,26 @@
+'''
+
+Week 3 IoT lab
+
+Authors:
+George Crossan C22374763
+Ciaran Coyne C22416392
+James Lawlor C22388703
+
+'''
+
+
 from network import WLAN
 from machine import Pin, PWM
 import time, socket
 
+errorHTML = "<html><body><h1>404</h1><p>Error: Page not found</p></body></html>"
+successHTML = "<html><body><h1>Success!</h1><p>Brightness has been set</p></body></html>"
+
 led = Pin(16)
-#led.value(1)
 pwm = PWM(led)
 pwm.freq(90)
 
-pwm.duty_u16(int(50000))
-
-#wifi.connect(ssid, password)
-#time.sleep(5)
 
 
 # More optimised way to connect to wifi 
@@ -28,6 +38,7 @@ def connect(
         else:
             return True
     return False
+
 
 
 # Connects to wifi
@@ -62,21 +73,13 @@ def getWifi(wifi):
         9: 'OWE'
     }
 
-    for (
-        ssid,
-        bssid,
-        channel,
-        rssi,
-        security,
-        hidden
-    ) in wifi.scan():
+    for (ssid, bssid, channel, rssi, security, hidden) in wifi.scan():
         ssid = ssid.decode('utf-8')
         security = securityType[security]
         print(f'Found network "{ssid}" using channel {channel} with security {security}')
-        
-    
-    
-    
+
+
+
 # Listens to HTTP server
 def server(wifi, ssid, password):
     port = 80
@@ -94,59 +97,65 @@ def server(wifi, ssid, password):
         
         while True:
             cxn, addr = s.accept()
-            print(f'Connected to {addr}')
+            print(f'\n\nConnected to {addr}')
             data = cxn.recvfrom(200)
-            #print(data, len(data))
             
             brightness = getHTTP(data, s)
             
             if brightness == -1:
-                s.sendall("HTTP/1.1 404 NOT FOUND" + "Content-Type: text/plain" + "<h1>Error: Bad Request</h1>")
-            
-            powerLED(brightness)
+                cxn.sendall("HTTP/1.1 404 NOT FOUND\r\n"
+                            + "Content-Type: text/html\r\n"
+                            + f"Content-Length: {len(errorHTML)}\r\n"
+                            + "\r\n"
+                            + errorHTML)
+            else:
+                pwm.duty_u16(int(50000 * brightness) )
+                cxn.sendall("HTTP/1.1 200 OK\r\n"
+                            + "Content-Type: text/html\r\n"
+                            + f"Content-Length: {len(successHTML)}\r\n"
+                            + "\r\n"
+                            + successHTML)
             
             cxn.close()
 
 
+
 # Returns value
 def getHTTP(data, sock) -> float:
-    brightness = "/led?brightness="
+    brightness = "GET /led?brightness="
     
     
     response = data[0].decode()
     print(response)
     
     index = response.find(brightness)
-    
     end = response.find("HTTP/")
     
+    # Check if the request is HTTP and includes brightness tag
     if index == -1 or end == -1:
+        print("Invalid HTTP Request format")
         return -1
-    else:
-        start = len(brightness) + index
-        end = response.find("HTTP/")
-        value = response[start:end-1]
+    
+    start = len(brightness) + index
+    value = response[start:end-1]
+    
+    # Check if brightness value can be converted to a float
+    try:  
         value = float(value)
+    except :
+        print("Invalid brightness value")
+        return -1
         
-        if value > 1 or value < 0:
-            return -1
-        
-        print("Val:", value)
-        
+    # Check value is in range 
+    if value > 1 or value < 0:
+        print("Brightness value is out of range")
+        return -1
+    
+    print("Val:", value)
     
     return value
     
-# Value determines power
-def powerLED(value: float):
-    print("LED: ", value)
-    pwm.duty_u16(int(50000 * value) )
-    #pwm.duty_u16(int(50000))
     
-
-    
-
-
-
 # ------------------------------------------------------------
 
 
@@ -156,12 +165,8 @@ wifi.active(True)
 ssid = 'Galaxy S22U'
 password = 'georgepassword'
 
-
 getWifi(wifi)
-
-#print(connect(wifi, ssid, password))
 wifiSetup(wifi, ssid, password)
-
 server(wifi, ssid, password)
 
 
