@@ -98,12 +98,9 @@ def server(wifi, ssid, password):
         while True:
             cxn, addr = s.accept()
             print(f'\n\nConnected to {addr}')
-            data = cxn.recvfrom(200)
+            data = recv_all(cxn)
             
-            brightness = getHTTP(data, s)
-            rp = requests.post('http://10.223.16.18/post', data={'key': 'value'})
-            rg = requests.get('https://10.223.16.18/events')
-            print(rg)
+            brightness = checkRequest(data, s)
             
             if brightness == -1:
                 cxn.sendall("HTTP/1.1 404 NOT FOUND\r\n"
@@ -122,9 +119,82 @@ def server(wifi, ssid, password):
             cxn.close()
 
 
+
+def recv_all(cxn):
+    request = cxn.recv(1024)
+    # Find Content-Length
+    content_length = 0
+    headers, _, body = request.partition(b"\r\n\r\n")
+    for line in headers.split(b"\r\n"):
+        if b"Content-Length:" in line:
+            content_length = int(line.split(b":")[1].strip())
+            break
+    
+    # If we didn’t get the full body yet, read more
+    while len(body) < content_length:
+        body += cxn.recv(1024)
+    
+    return headers + b"\r\n\r\n" + body
+
+
+
+def checkRequest(data, s):
+    print(data)
+    response = data[0].decode()
+    print(response)
+    
+    if(response.startswith("GET")):
+        return getRequest(data, s)
+    elif(response.startswith("POST")):
+        return postRequest(data, s)
+    else:
+        print("Request is not of GET or POST")
+        return -1
+
+
+
 # Returns value
-def getHTTP(data, sock) -> float:
-    brightness = "GET /led?brightness="
+def getRequest(data, sock) -> float:
+    brightness = "/led?brightness="
+    
+    
+    response = data[0].decode()
+    print(response)
+    
+    index = response.find(brightness)
+    end = response.find("HTTP/")
+    
+    # Check if the request is HTTP and includes brightness tag
+    if index == -1 or end == -1:
+        print("Invalid HTTP Request format")
+        return -1
+    
+    start = len(brightness) + index
+    value = response[start:end-1]
+    
+    # Check if brightness value can be converted to a float
+    try:  
+        value = float(value)
+    except :
+        print("Invalid brightness value")
+        return -1
+        
+    # Check value is in range 
+    if value > 1 or value < 0:
+        print("Brightness value is out of range")
+        return -1
+    
+    print("Val:", value)
+    
+    return value
+    
+
+    
+# Returns value
+# TODO: ammend this to parse the json, check if 'request' is true,
+#  and get brightness value
+def postRequest(data, sock) -> float:
+    brightness = "/rest/led"
     
     
     response = data[0].decode()
