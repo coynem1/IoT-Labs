@@ -13,6 +13,7 @@ import requests
 from network import WLAN
 from machine import Pin, PWM
 import time, socket
+import cryptolib
 
 errorHTML = "<html><body><h1>404</h1><p>Error: Page not found</p></body></html>"
 successHTML = "<html><body><h1>Success!</h1><p>Brightness has been set</p></body></html>"
@@ -22,6 +23,7 @@ pwm = PWM(led)
 pwm.freq(90)
 
 temp_sensor = machine.ADC(4) # The thermometer is hardcoded to ADC number 4
+timer = machine.Timer()
 
 
 
@@ -229,14 +231,29 @@ def postRequest(data, sock) -> float:
     
     return value
 
-def readTemp():
+def readTemp(t):
     global temp_sensor
     value = temp_sensor.read_u16()
     voltage = value * (3.3 / 2 ** 16)
     temperature = 27 - (voltage - 0.706) / .001721
-    return temperature
-print (f'The temperature is {readTemp()} degrees')
-    
+    print(f'The temperature is {temperature} degrees')
+
+
+# Makes length 16
+def pad_128 (data):
+    output = data[:]
+    while len(output) < 16:
+        output += data
+        
+    if len(output) == 16:
+        return output
+    return output[:-(len(output) % 16)]
+
+
+
+
+
+
     
 # ------------------------------------------------------------
 
@@ -247,10 +264,35 @@ wifi.active(True)
 ssid = 'Ciarans S22 Ultra'
 password = 'password12'
 
+iv = b' hey!'
+key = b'secret!'
+data = b'Hello, World!'
+
+
+
+padded_key = pad_128(key)
+padded_iv = pad_128(iv)
+padded_data = pad_128(data)
+
+#The 2 means we want to use CBC mode
+cipher = cryptolib.aes(padded_key, 2, padded_iv)
+ciphertext = cipher.encrypt(padded_data)
+cipher = cryptolib.aes(padded_key, 2, padded_iv)
+
+plaintext = cipher.decrypt(ciphertext)
+
+
+
+
+
+# Initiate thermometer
+timer.init(freq=1, mode=machine.Timer.PERIODIC, callback=readTemp)
+
+print(ciphertext)
+print(plaintext)
+
 getWifi(wifi)
 wifiSetup(wifi, ssid, password)
 server(wifi, ssid, password)
-
-
 
 
