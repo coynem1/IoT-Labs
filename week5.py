@@ -14,6 +14,7 @@ from network import WLAN
 from machine import Pin, PWM
 import time, socket
 import cryptolib
+import json
 
 errorHTML = "<html><body><h1>404</h1><p>Error: Page not found</p></body></html>"
 successHTML = "<html><body><h1>Success!</h1><p>Brightness has been set</p></body></html>"
@@ -233,10 +234,18 @@ def postRequest(data, sock) -> float:
 
 def readTemp(t):
     global temp_sensor
+    
+    iv = b' hey!'
+    key = b'secret!'
+    
     value = temp_sensor.read_u16()
     voltage = value * (3.3 / 2 ** 16)
     temperature = 27 - (voltage - 0.706) / .001721
-    print(f'The temperature is {temperature} degrees')
+    
+    msg = f'The temperature is {temperature} degrees'
+    msgEncrypted = encryptAES(msg, key, iv)
+    
+    r = requests.post('http://192.168.55.1', json={'key': msgEncrypted})
 
 
 # Makes length 16
@@ -250,9 +259,34 @@ def pad_128 (data):
     return output[:-(len(output) % 16)]
 
 
+# Encrypt message
+def encryptAES(msg, key, iv):
+    padded_key = pad_128(key)
+    padded_iv = pad_128(iv)
+    padded_data = pad_128(msg)
 
+    #The 2 means we want to use CBC mode
+    cipher = cryptolib.aes(padded_key, 2, padded_iv)
+    ciphertext = cipher.encrypt(padded_data)
+    cipher = cryptolib.aes(padded_key, 2, padded_iv)
 
+    #plaintext = cipher.decrypt(ciphertext)
+    return ciphertext
+    
 
+# Decrypt message
+def decryptAES(msg, key, iv):
+    padded_key = pad_128(key)
+    padded_iv = pad_128(iv)
+    padded_data = pad_128(msg)
+
+    #The 2 means we want to use CBC mode
+    cipher = cryptolib.aes(padded_key, 2, padded_iv)
+    ciphertext = cipher.encrypt(padded_data)
+    cipher = cryptolib.aes(padded_key, 2, padded_iv)
+
+    plaintext = cipher.decrypt(ciphertext)
+    return plaintext
 
     
 # ------------------------------------------------------------
@@ -270,26 +304,9 @@ data = b'Hello, World!'
 
 
 
-padded_key = pad_128(key)
-padded_iv = pad_128(iv)
-padded_data = pad_128(data)
-
-#The 2 means we want to use CBC mode
-cipher = cryptolib.aes(padded_key, 2, padded_iv)
-ciphertext = cipher.encrypt(padded_data)
-cipher = cryptolib.aes(padded_key, 2, padded_iv)
-
-plaintext = cipher.decrypt(ciphertext)
-
-
-
-
 
 # Initiate thermometer
 timer.init(freq=1, mode=machine.Timer.PERIODIC, callback=readTemp)
-
-print(ciphertext)
-print(plaintext)
 
 getWifi(wifi)
 wifiSetup(wifi, ssid, password)
