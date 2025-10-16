@@ -273,7 +273,6 @@ def encryptAES(msg, key, iv):
     print(padded_data)
 
     #plaintext = cipher.decrypt(ciphertext)
-    print(type(ciphertext))
     return ciphertext
     
 
@@ -292,11 +291,16 @@ def decryptAES(msg, key, iv):
     return plaintext
 
     
-def socketSetup():
-    s = socket.socket()
-    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+def socketSetup(msg):
+    #s = socket.socket()
+    #s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    host = '0.0.0.0'
+    port = 80
     
-    
+    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    clientsocket.connect((host, port))
+    clientsocket.sendall(b'\xb5D\x05\x87\x00o\x0b\x90C\x8a\xd6\xb7\x16\x8eM\x9f')
+
 
 # ------------------------------------------------------------
 
@@ -307,11 +311,13 @@ wifi.active(True)
 ssid = 'Ciarans S22 Ultra'
 password = 'password12'
 
-#host, port = ('0.0.0.0', )
+
 
 iv = b' hey!'
 key = b'secret!'
 data = b'Hello, World!'
+
+socketSetup(0)
 
 encryptAES(data, key, iv)
 
