@@ -245,7 +245,7 @@ def readTemp(t):
     msg = f'The temperature is {temperature} degrees'
     msgEncrypted = encryptAES(msg, key, iv)
     
-    r = requests.post('http://192.168.55.1', json={'key': msgEncrypted})
+    #r = requests.post('http://192.168.55.1', json={'key': msgEncrypted})
 
 
 # Makes length 16
@@ -269,8 +269,11 @@ def encryptAES(msg, key, iv):
     cipher = cryptolib.aes(padded_key, 2, padded_iv)
     ciphertext = cipher.encrypt(padded_data)
     cipher = cryptolib.aes(padded_key, 2, padded_iv)
+    
+    print(padded_data)
 
     #plaintext = cipher.decrypt(ciphertext)
+    print(type(ciphertext))
     return ciphertext
     
 
@@ -289,6 +292,12 @@ def decryptAES(msg, key, iv):
     return plaintext
 
     
+def socketSetup():
+    s = socket.socket()
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    
+
 # ------------------------------------------------------------
 
 
@@ -298,9 +307,13 @@ wifi.active(True)
 ssid = 'Ciarans S22 Ultra'
 password = 'password12'
 
+#host, port = ('0.0.0.0', )
+
 iv = b' hey!'
 key = b'secret!'
 data = b'Hello, World!'
+
+encryptAES(data, key, iv)
 
 
 
