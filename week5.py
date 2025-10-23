@@ -9,25 +9,29 @@ James Lawlor C22388703
 
 '''
 
+# Imports
 import requests
 from network import WLAN
 from machine import Pin, PWM
 import time, socket
 import cryptolib
-import json
 
-global clientsocket
-
-errorHTML = "<html><body><h1>404</h1><p>Error: Page not found</p></body></html>"
-successHTML = "<html><body><h1>Success!</h1><p>Brightness has been set</p></body></html>"
-
-led = Pin(16)
-pwm = PWM(led)
-pwm.freq(90)
+# Global vars
+global clientsocket     # AES server
+global temp_sensor
 
 temp_sensor = machine.ADC(4) # The thermometer is hardcoded to ADC number 4
 timer = machine.Timer()
 
+# Week 3
+# Server return message
+errorHTML = "<html><body><h1>404</h1><p>Error: Page not found</p></body></html>"
+successHTML = "<html><body><h1>Success!</h1><p>Brightness has been set</p></body></html>"
+
+# Changes LED brightness with PWM
+led = Pin(16)
+pwm = PWM(led)
+pwm.freq(90)
 
 
 # More optimised way to connect to wifi 
@@ -38,6 +42,8 @@ def connect(
     timeout=10
 ):
     wifi_obj.connect(ssid, password)
+
+    # Check for connection until timeout
     while timeout > 0:
         if wifi_obj.status() != 3:
             time.sleep(1)
@@ -46,24 +52,22 @@ def connect(
             return True
     return False
 
-
-
 # Connects to wifi
 def wifiSetup(wifi, ssid, password):
     conn = connect(wifi, ssid, password)
-        
-    if conn != True:
-        print("Wifi couldn't connect")
-    else:
-        # Crashes if cant find address
-        try:
-            tudDNS = socket.getaddrinfo('tudublin.ie', 443)
-            tudIP = tudDNS[0][-1][0]
-            print(f'The IP address for TUD is {tudIP}')
-        except:
-            print('Address not found')
 
+    # Error connecting  
+    if not conn:
+        print(f"Wifi couldn't connect")
+        return
 
+    # Crashes if cant find address
+    try:
+        tudDNS = socket.getaddrinfo('tudublin.ie', 443)
+        tudIP = tudDNS[0][-1][0]
+        print(f'The IP address for TUD is {tudIP}')
+    except:
+        print('Address not found')
 
 # Prints nearby wifi networks
 def getWifi(wifi):
@@ -80,55 +84,61 @@ def getWifi(wifi):
         9: 'OWE'
     }
 
+    # Loop through wifi networks and print out
     for (ssid, bssid, channel, rssi, security, hidden) in wifi.scan():
         ssid = ssid.decode('utf-8')
         security = securityType[security]
         print(f'Found network "{ssid}" using channel {channel} with security {security}')
 
-
-
+# Week 3
 # Listens to HTTP server
 def server(wifi, ssid, password):
     port = 80
     
+    # Error connecting
     if not connect(wifi, ssid, password):
         print("Wifi couldn't connect")
-    else:
-        s = socket.socket()
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        return
+
+    s = socket.socket()
+    s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    
+    s.bind(('0.0.0.0', port))
+    s.listen(5)
+    ip = wifi.ifconfig()[0]
+    print(f'Listening on IP {ip}')
+    
+    # Continue sending forever
+    while True:
+        cxn, addr = s.accept()
+        print(f'\n\nConnected to {addr}')
+        data = recv_all(cxn)
         
-        s.bind(('0.0.0.0', port))
-        s.listen(5)
-        ip = wifi.ifconfig()[0]
-        print(f'Listening on IP {ip}')
+        brightness = getRequest(data, s)
         
-        while True:
-            cxn, addr = s.accept()
-            print(f'\n\nConnected to {addr}')
-            data = recv_all(cxn)
-            
-            brightness = checkRequest(data, s)
-            
-            if brightness == -1:
-                cxn.sendall("HTTP/1.1 404 NOT FOUND\r\n"
-                            + "Content-Type: text/html\r\n"
-                            + f"Content-Length: {len(errorHTML)}\r\n"
-                            + "\r\n"
-                            + errorHTML)
-            else:
-                pwm.duty_u16(int(50000 * brightness) )
-                cxn.sendall("HTTP/1.1 200 OK\r\n"
-                            + "Content-Type: text/html\r\n"
-                            + f"Content-Length: {len(successHTML)}\r\n"
-                            + "\r\n"
-                            + successHTML)
-            
-            cxn.close()
+        # If error message
+        if brightness == -1:
+            cxn.sendall("HTTP/1.1 404 NOT FOUND\r\n"
+                        + "Content-Type: text/html\r\n"
+                        + f"Content-Length: {len(errorHTML)}\r\n"
+                        + "\r\n"
+                        + errorHTML)
+        else:
+            # Change PWM of LED & send ok message
+            pwm.duty_u16(int(50000 * brightness))   # Limited brightness to not burn LED out
+            cxn.sendall("HTTP/1.1 200 OK\r\n"
+                        + "Content-Type: text/html\r\n"
+                        + f"Content-Length: {len(successHTML)}\r\n"
+                        + "\r\n"
+                        + successHTML)
+        
+        cxn.close()
 
 
-
+# Decodes all packets until message is recieved
 def recv_all(cxn):
     request = cxn.recv(1024)
+
     # Find Content-Length
     content_length = 0
     headers, _, body = request.partition(b"\r\n\r\n")
@@ -143,35 +153,16 @@ def recv_all(cxn):
     
     return headers + b"\r\n\r\n" + body
 
-
-
-def checkRequest(data, s):
-    print(data)
-    response = data[0].decode()
-    print(response)
-    
-    if(response.startswith("GET")):
-        return getRequest(data, s)
-    elif(response.startswith("POST")):
-        return postRequest(data, s)
-    else:
-        print("Request is not of GET or POST")
-        return -1
-
-
-
-# Returns value
+# Returns value of brightness entered
 def getRequest(data, sock) -> float:
     brightness = "/led?brightness="
-    
-    
     response = data[0].decode()
-    print(response)
     
+    # Index for start/end of value
     index = response.find(brightness)
     end = response.find("HTTP/")
     
-    # Check if the request is HTTP and includes brightness tag
+    # Request doesnt include brightness/HTML tag
     if index == -1 or end == -1:
         print("Invalid HTTP Request format")
         return -1
@@ -179,79 +170,36 @@ def getRequest(data, sock) -> float:
     start = len(brightness) + index
     value = response[start:end-1]
     
-    # Check if brightness value can be converted to a float
+    # Attempt to convert to float
     try:  
         value = float(value)
     except :
         print("Invalid brightness value")
         return -1
         
-    # Check value is in range 
+    # Value not in range 
     if value > 1 or value < 0:
         print("Brightness value is out of range")
         return -1
     
-    print("Val:", value)
-    
     return value
     
-
-    
-# Returns value
-# TODO: ammend this to parse the json, check if 'request' is true,
-#  and get brightness value
-def postRequest(data, sock) -> float:
-    brightness = "/rest/led"
-    
-    
-    response = data[0].decode()
-    print(response)
-    
-    index = response.find(brightness)
-    end = response.find("HTTP/")
-    
-    # Check if the request is HTTP and includes brightness tag
-    if index == -1 or end == -1:
-        print("Invalid HTTP Request format")
-        return -1
-    
-    start = len(brightness) + index
-    value = response[start:end-1]
-    
-    # Check if brightness value can be converted to a float
-    try:  
-        value = float(value)
-    except :
-        print("Invalid brightness value")
-        return -1
-        
-    # Check value is in range 
-    if value > 1 or value < 0:
-        print("Brightness value is out of range")
-        return -1
-    
-    print("Val:", value)
-    
-    return value
-
+# Sends AES encrypted message
 def readTemp(t):
-    global temp_sensor
-    
+    # Needed to encrypt AES
     iv = b' hey!'
     key = b'secret!'
     
+    # Gets temperature
     value = temp_sensor.read_u16()
     voltage = value * (3.3 / 2 ** 16)
     temperature = 27 - (voltage - 0.706) / .001721
     
+    # Encrypts string to send to AES server
     msg = f'The temperature is {temperature} degrees'
     msgEncrypted = encryptAES(msg, key, iv)
     
     clientsocket.sendall(msgEncrypted)
-    
-    
-    #r = requests.post('http://192.168.55.1', json={'key': msgEncrypted})
-
 
 # Makes length 16
 def pad_128 (data):
@@ -266,77 +214,40 @@ def pad_128 (data):
 
 # Encrypt message
 def encryptAES(msg, key, iv):
+    # Encrypt message using key and init vector
     padded_key = pad_128(key)
     padded_iv = pad_128(iv)
     padded_data = pad_128(msg)
 
-    #The 2 means we want to use CBC mode
+    # The 2 means CBC mode
     cipher = cryptolib.aes(padded_key, 2, padded_iv)
     ciphertext = cipher.encrypt(padded_data)
     cipher = cryptolib.aes(padded_key, 2, padded_iv)
-    
-    print(padded_data)
 
-    #plaintext = cipher.decrypt(ciphertext)
     return ciphertext
-    
-
-# Decrypt message
-def decryptAES(msg, key, iv):
-    padded_key = pad_128(key)
-    padded_iv = pad_128(iv)
-    padded_data = pad_128(msg)
-
-    #The 2 means we want to use CBC mode
-    cipher = cryptolib.aes(padded_key, 2, padded_iv)
-    ciphertext = cipher.encrypt(padded_data)
-    cipher = cryptolib.aes(padded_key, 2, padded_iv)
-
-    plaintext = cipher.decrypt(ciphertext)
-    return plaintext
-
-    
-def socketSetup(msg):
-    #s = socket.socket()
-    #s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    host = '192.168.182.13'
-    port = 80
-    
-    clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    clientsocket.connect((host, port))
-    clientsocket.sendall(b'\xb5D\x05\x87\x00o\x0b\x90C\x8a\xd6\xb7\x16\x8eM\x9f')
-
 
 # ------------------------------------------------------------
+
+# Week 2
+# Wifi initialize
+ssid = 'Galaxy S22U'
+password = 'georgepassword'
 
 wifi = WLAN(WLAN.IF_STA)
 wifi.active(True)
 
-ssid = 'Galaxy S22U'
-password = 'georgepassword'
+getWifi(wifi)
+wifiSetup(wifi, ssid, password)
 
+# Week 5
+# Connect to AES server
 host = '192.168.182.13'
 port = 80
-    
+
 clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 clientsocket.connect((host, port))
 
-#iv = b' hey!'
-#key = b'secret!'
-#data = b'Hello, World!'
-
-#socketSetup(0)
-
-#encryptAES(data, key, iv)
-
-
-
-
-# Initiate thermometer
+# Initiate thermometer to send messages
 timer.init(freq=1, mode=machine.Timer.PERIODIC, callback=readTemp)
-
-getWifi(wifi)
-wifiSetup(wifi, ssid, password)
-server(wifi, ssid, password)
 
 
