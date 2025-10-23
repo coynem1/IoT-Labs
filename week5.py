@@ -16,6 +16,8 @@ import time, socket
 import cryptolib
 import json
 
+global clientsocket
+
 errorHTML = "<html><body><h1>404</h1><p>Error: Page not found</p></body></html>"
 successHTML = "<html><body><h1>Success!</h1><p>Brightness has been set</p></body></html>"
 
@@ -245,6 +247,9 @@ def readTemp(t):
     msg = f'The temperature is {temperature} degrees'
     msgEncrypted = encryptAES(msg, key, iv)
     
+    clientsocket.sendall(msgEncrypted)
+    
+    
     #r = requests.post('http://192.168.55.1', json={'key': msgEncrypted})
 
 
@@ -294,7 +299,7 @@ def decryptAES(msg, key, iv):
 def socketSetup(msg):
     #s = socket.socket()
     #s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    host = '0.0.0.0'
+    host = '192.168.182.13'
     port = 80
     
     clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -304,22 +309,25 @@ def socketSetup(msg):
 
 # ------------------------------------------------------------
 
-
 wifi = WLAN(WLAN.IF_STA)
 wifi.active(True)
 
-ssid = 'Ciarans S22 Ultra'
-password = 'password12'
+ssid = 'Galaxy S22U'
+password = 'georgepassword'
 
+host = '192.168.182.13'
+port = 80
+    
+clientsocket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+clientsocket.connect((host, port))
 
+#iv = b' hey!'
+#key = b'secret!'
+#data = b'Hello, World!'
 
-iv = b' hey!'
-key = b'secret!'
-data = b'Hello, World!'
+#socketSetup(0)
 
-socketSetup(0)
-
-encryptAES(data, key, iv)
+#encryptAES(data, key, iv)
 
 
 
