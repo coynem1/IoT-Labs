@@ -1,5 +1,13 @@
-# Fundamentals of IoT Lab 5
-# James Lawlor, George Crossan, Ciaran Coyne
+'''
+
+Week 5 IoT lab
+
+Authors:
+George Crossan C22374763
+Ciaran Coyne C22416392
+James Lawlor C22388703
+
+'''
 
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
