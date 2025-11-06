@@ -1,22 +1,70 @@
 import umqtt.robust as umqtt
+from network import WLAN
+import gpiozero as gp
+import time
+
+my_led = gp.LED(17)
 
 #Assuming that you connect to the internet as normal...
+
+# More optimised way to connect to wifi 
+def connect(wifi_obj, ssid, password, timeout=10):
+
+    wifi_obj.connect(ssid, password)
+
+    # Check for connection until timeout
+    while timeout > 0:
+        if wifi_obj.status() != 3:
+            time.sleep(1)
+            timeout -= 1
+        else:
+            return True
+    return False
+
+
+def wifiSetup(wifi, ssid, password):
+    conn = connect(wifi, ssid, password)
+
+    # Error connecting  
+    if not conn:
+        print(f"Wifi couldn't connect")
+        return
+
+    # Crashes if cant find address
+    try:
+        tudDNS = socket.getaddrinfo('tudublin.ie', 443)
+        tudIP = tudDNS[0][-1][0]
+        print(f'The IP address for TUD is {tudIP}')
+    except:
+        print('Address not found')
+
+
+
+ssid = 'Galaxy S22U'
+password = 'georgepassword'
+
+wifi = WLAN(WLAN.IF_STA)
+wifi.active(True)
+
+wifiSetup(wifi, ssid, password)
 
 HOSTNAME = 'Raspberry Pi IP'
 PORT = 1883
 TOPIC= 'temp/pico'
 
 mqtt = umqtt.MQTTClient(
-    client_id b'publish',
+    client_id b'subscribe',
     server = HOSTNAME.encode(),
     port = PORT,
     keepalive = 7000 # seconds
 )
 
 def callback(topic, message):
-    # TODO Ignore messages that are not part of
-    # the temp/pico topic
-    print(f'I recieved the message "{message}" for topic "{topic}"')
+    if topic == TOPIC:
+        print(f'I recieved the message "{message}" for topic "{topic}"')
+        my_led.on()
+        time.sleep(10)
+        my_led.off()
 
 mqtt.connect()
 
