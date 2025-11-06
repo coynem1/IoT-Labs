@@ -1,9 +1,9 @@
 import umqtt.robust as umqtt
 from network import WLAN
-import gpiozero as gp
+from machine import Pin
 import time
 
-my_led = gp.LED(17)
+led = Pin(16)
 
 #Assuming that you connect to the internet as normal...
 
@@ -53,7 +53,7 @@ PORT = 1883
 TOPIC= 'temp/pico'
 
 mqtt = umqtt.MQTTClient(
-    client_id b'subscribe',
+    client_id = b'subscribe',
     server = HOSTNAME.encode(),
     port = PORT,
     keepalive = 7000 # seconds
@@ -62,9 +62,9 @@ mqtt = umqtt.MQTTClient(
 def callback(topic, message):
     if topic == TOPIC:
         print(f'I recieved the message "{message}" for topic "{topic}"')
-        my_led.on()
+        led.value(1)
         time.sleep(10)
-        my_led.off()
+        led.value(0)
 
 mqtt.connect()
 
