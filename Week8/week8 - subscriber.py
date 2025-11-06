@@ -1,4 +1,4 @@
-import umqtt.robust as umqtt
+import umqtt.robust as mqtt
 from network import WLAN
 from machine import Pin
 import time
