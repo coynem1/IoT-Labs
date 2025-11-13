@@ -1,4 +1,4 @@
-import umqtt.robust as mqtt
+import umqtt.robust as umqtt
 from network import WLAN
 from machine import Pin
 import time
@@ -18,26 +18,32 @@ def connect(wifi_obj, ssid, password, timeout=10):
             time.sleep(1)
             timeout -= 1
         else:
+            print(wifi_obj.ifconfig())
             return True
     return False
 
 
 def wifiSetup(wifi, ssid, password):
     conn = connect(wifi, ssid, password)
+    
+    print(conn)
 
     # Error connecting  
     if not conn:
         print(f"Wifi couldn't connect")
         return
-
-    # Crashes if cant find address
-    try:
-        tudDNS = socket.getaddrinfo('tudublin.ie', 443)
-        tudIP = tudDNS[0][-1][0]
-        print(f'The IP address for TUD is {tudIP}')
-    except:
-        print('Address not found')
-
+    else:
+        print('Connected')
+        
+        # Crashes if cant find address
+        try:
+            tudDNS = socket.getaddrinfo('tudublin.ie', 443)
+            tudIP = tudDNS[0][-1][0]
+            print(f'The IP address for TUD is {tudIP}')
+        except:
+            print('Address not found')
+        
+    
 
 
 ssid = 'Galaxy S22U'
@@ -48,8 +54,8 @@ wifi.active(True)
 
 wifiSetup(wifi, ssid, password)
 
-HOSTNAME = 'Raspberry Pi IP'
-PORT = 1883
+HOSTNAME = '192.168.163.105'
+PORT = 8080
 TOPIC= 'temp/pico'
 
 mqtt = umqtt.MQTTClient(
@@ -60,6 +66,7 @@ mqtt = umqtt.MQTTClient(
 )
 
 def callback(topic, message):
+    print("AAAAAAAA")
     if topic == TOPIC:
         print(f'I recieved the message "{message}" for topic "{topic}"')
         led.value(1)
@@ -71,6 +78,9 @@ mqtt.connect()
 #Assuming that you have the temperature as an int or a
 #float in a variable called `temp':
 mqtt.set_callback(callback)
+print('hello')
 mqtt.wait_msg() # Blocking wait
+
+
 
 # -- use .check_msg() for non-blocking
