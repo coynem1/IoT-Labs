@@ -2,6 +2,7 @@ import umqtt.robust as umqtt
 import machine
 from network import WLAN
 import time
+import socket
 #Assuming that you connect to the internet as normal...
 
 temp_sensor = machine.ADC(4)
@@ -42,7 +43,7 @@ wifi.active(True)
 
 connect(wifi, ssid, password)
 
-HOSTNAME = '192.168.101.105'
+HOSTNAME = '192.168.163.105'
 PORT = 8080
 TOPIC= 'temp/pico'
 
