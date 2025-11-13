@@ -2,8 +2,9 @@ import umqtt.robust as umqtt
 from network import WLAN
 from machine import Pin
 import time
+import socket
 
-led = Pin(16)
+led = Pin("LED", Pin.OUT)
 
 #Assuming that you connect to the internet as normal...
 
@@ -60,27 +61,27 @@ TOPIC= 'temp/pico'
 
 mqtt = umqtt.MQTTClient(
     client_id = b'subscribe',
-    server = HOSTNAME.encode(),
+    server = HOSTNAME,
     port = PORT,
     keepalive = 7000 # seconds
 )
 
 def callback(topic, message):
-    print("AAAAAAAA")
-    if topic == TOPIC:
-        print(f'I recieved the message "{message}" for topic "{topic}"')
-        led.value(1)
-        time.sleep(10)
-        led.value(0)
+    if topic.decode() == TOPIC:
+        # print(f'I recieved the message "{message}" for topic "{topic}"')
+        print(f'Received temperature: {message} degrees')
+        if(float(message) > 25):
+            print('Temperature is above 25 degrees, turning on LED')
+            led.on()
+        else:
+            print('Temperature is below 25 degrees, turning off LED')
+            led.off()
+
+mqtt.set_callback(callback)
 
 mqtt.connect()
-
+mqtt.subscribe(TOPIC.encode())
 #Assuming that you have the temperature as an int or a
 #float in a variable called `temp':
-mqtt.set_callback(callback)
-print('hello')
-mqtt.wait_msg() # Blocking wait
-
-
-
-# -- use .check_msg() for non-blocking
+while True:
+    mqtt.wait_msg() # Blocking wait
