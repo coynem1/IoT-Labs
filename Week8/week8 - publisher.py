@@ -43,7 +43,7 @@ wifi.active(True)
 
 connect(wifi, ssid, password)
 
-HOSTNAME = '192.168.163.105'
+HOSTNAME = '192.168.33.105'
 PORT = 8080
 TOPIC= 'temp/pico'
 
