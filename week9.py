@@ -7,7 +7,7 @@ import time
 BROKER_IP = '192.168.33.105'
 TOPIC= 'temp/pico'
 OUTPUT_PIN = "LED"
-PUB_IDENT = 'pub'
+PUB_IDENT = None
 PORT = 8080
 
 led = machine.Pin("LED", machine.Pin.OUT)
@@ -84,4 +84,4 @@ elif PUB_IDENT is not None and OUTPUT_PIN is None:
     mqtt.connect()
     timer.init(freq=1, mode=machine.Timer.PERIODIC, callback=read_temp)
 else:
-    print("ERROR: Cannot have both publisher and subscriber functionality enabled.")
+    print("ERROR: Cannot have both publisher and subscriber functionality enabled. (Set only PUB_IDENT or OUTPUT_PIN)")
