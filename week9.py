@@ -72,14 +72,16 @@ wifi.active(True)
 connect(wifi, ssid, password)
 
 
-if PUB_IDENT is None and OUTPUT_PIN:
+if PUB_IDENT is None and OUTPUT_PIN is not None:
     mqtt = get_mqtt(b'subscribe')
     mqtt.connect()
     mqtt.set_callback(callback)
     mqtt.subscribe(TOPIC.encode())
     while True:
         mqtt.wait_msg() # Blocking wait
-else:
+elif PUB_IDENT is not None and OUTPUT_PIN is None:
     mqtt = get_mqtt(b'publish')
     mqtt.connect()
     timer.init(freq=1, mode=machine.Timer.PERIODIC, callback=read_temp)
+else:
+    print("ERROR: Cannot have both publisher and subscriber functionality enabled.")
