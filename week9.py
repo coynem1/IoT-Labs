@@ -10,7 +10,6 @@ OUTPUT_PIN = "LED"
 PUB_IDENT = None
 PORT = 8080
 
-led = machine.Pin("LED", machine.Pin.OUT)
 temp_sensor = machine.ADC(4)
 timer = machine.Timer()
 
@@ -51,17 +50,6 @@ def read_temp(t):
     temperature = 27 - (voltage - 0.706) / .001721
     
     print(f'The temperature is {temperature} degrees')
-    mqtt.publish(TOPIC, str(temperature).encode())
-
-
-def get_mqtt(CLIENT_ID):
-    return umqtt.MQTTClient(
-        client_id = CLIENT_ID,
-        server = BROKER_IP.encode(),
-        port = PORT,
-        keepalive = 7000 # seconds
-    )
-    
 
 ssid = 'Galaxy S22U'
 password = 'georgepassword'
@@ -71,17 +59,21 @@ wifi.active(True)
 
 connect(wifi, ssid, password)
 
+mqtt = umqtt.MQTTClient(
+        client_id = PUB_IDENT.encode(),
+        server = BROKER_IP.encode(),
+        port = PORT,
+        keepalive = 7000 # seconds
+    )
+
+mqtt.connect()
 
 if PUB_IDENT is None and OUTPUT_PIN is not None:
-    mqtt = get_mqtt(b'subscribe')
-    mqtt.connect()
     mqtt.set_callback(callback)
     mqtt.subscribe(TOPIC.encode())
     while True:
         mqtt.wait_msg() # Blocking wait
 elif PUB_IDENT is not None and OUTPUT_PIN is None:
-    mqtt = get_mqtt(b'publish')
-    mqtt.connect()
     timer.init(freq=1, mode=machine.Timer.PERIODIC, callback=read_temp)
 else:
     print("ERROR: Cannot have both publisher and subscriber functionality enabled. (Set only PUB_IDENT or OUTPUT_PIN)")
