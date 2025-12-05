@@ -1,0 +1,9 @@
+syntax = "proto2";
+
+message MQTTMessage{
+
+    required uint32 clientid = 1;
+    required uint32 temp = 2;
+    required uint32 time = 3;
+
+}
