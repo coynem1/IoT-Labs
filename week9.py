@@ -2,9 +2,11 @@ import umqtt.robust as umqtt
 from network import WLAN
 import machine
 import time
+import MQTT_upb2
+import uprotobuf
+import ujson
 
-
-BROKER_IP = '192.168.33.105'
+BROKER_IP = '192.168.122.105'
 TOPIC= 'temp/pico'
 OUTPUT_PIN = "LED"
 PUB_IDENT = None
@@ -34,9 +36,27 @@ def connect(
 
 def callback(topic, message):
     if topic.decode() == TOPIC:
-        # print(f'I recieved the message "{message}" for topic "{topic}"')
-        print(f'Received temperature: {message} degrees')
-        if(float(message) > 25):
+        rtc = machine.RTC()
+        total = 0.0
+        messageD = ujson.loads(message.decode())        
+        
+        temperatures[messageD["id"]] = messageD["value"]
+        print(temperatures)
+
+        for key in temperatures.keys():
+            total += temperatures[key]
+            
+        
+        avgTemp = total / len(temperatures)
+        pubTimes[messageD["id"]] = (messageD["hours"], messageD["minutes"], messageD["seconds"])
+        print(pubTimes)
+
+        # print('TEMPERATURES: ', temperatures)
+        #print(f'Recieved temperature: {messageD["value"]} degrees')
+        print(f'Average temperature: {avgTemp} degrees')
+        
+        
+        if(float(avgTemp) > 25.0):
             print('Temperature is above 25 degrees, turning on LED')
             led.on()
         else:
@@ -61,8 +81,16 @@ def get_mqtt(CLIENT_ID):
         port = PORT,
         keepalive = 7000 # seconds
     )
-    
 
+#rtc = machine.RTC()
+#print("Time: ", rtc.datetime()[4:7])
+
+
+
+
+startTime = time.time()
+temperatures = {}   # ID: temp
+pubTimes = {}   # ID: time
 ssid = 'Galaxy S22U'
 password = 'georgepassword'
 
