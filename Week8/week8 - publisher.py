@@ -57,7 +57,3 @@ mqtt = umqtt.MQTTClient(
 mqtt.connect()
 
 timer.init(freq=1, mode=machine.Timer.PERIODIC, callback=read_temp)
-
-
-#Assuming that you have the temperature as an int or a
-#float in a variable called `temp':
